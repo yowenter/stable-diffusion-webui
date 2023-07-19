@@ -62,13 +62,18 @@ class Extension:
                 self.remote = next(repo.remote().urls, None)
                 commit = repo.head.commit
                 self.commit_date = commit.committed_date
-                if repo.active_branch:
-                    self.branch = repo.active_branch.name
+                try:
+                    if repo.active_branch:
+                        self.branch = repo.active_branch.name
+                except Exception as e:
+                    print(f"repo active branch failed.. {e}, use DETACHED")
+                    self.branch = repo.refs[0].name
                 self.commit_hash = commit.hexsha
                 self.version = self.commit_hash[:8]
 
-            except Exception:
-                errors.report(f"Failed reading extension data from Git repository ({self.name})", exc_info=True)
+
+            except Exception as e:
+                errors.report(f"Failed reading extension data from Git repository ({self.name}) {e}", exc_info=True)
                 self.remote = None
 
         self.have_info_from_repo = True

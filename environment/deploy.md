@@ -49,6 +49,16 @@ set http proxy if needed:
 Downloading: "https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors" to  stable-diffusion-webui/models/Stable-diffusion/v1-5-pruned-emaonly.safetensors
 
 
+LatentDiffusion: Running in eps-prediction mode
+DiffusionWrapper has 859.52 M params.
+Downloading (…)olve/main/vocab.json: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 961k/961k [00:00<00:00, 1.08MB/s]
+Downloading (…)olve/main/merges.txt: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 525k/525k [00:00<00:00, 1.50MB/s]
+Downloading (…)cial_tokens_map.json: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 389/389 [00:00<00:00, 1.31MB/s]
+Downloading (…)okenizer_config.json: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 905/905 [00:00<00:00, 3.12MB/s]
+Downloading (…)lve/main/config.json: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 4.52k/4.52k [00:00<00:00, 962kB/s]
+Applying attention optimization: Doggettx... done.
+Textual inversion embeddings loaded(0)
+
 
 5. download extensions
 
