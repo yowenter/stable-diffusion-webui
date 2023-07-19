@@ -71,3 +71,7 @@ cd `extensions/sd-webui-controlnet/models/`
 
 `bash webui-user.sh `
 
+
+7. save requirements
+
+`pip freeze > environment/all_in_one_requirements.txt`
