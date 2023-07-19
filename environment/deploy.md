@@ -38,6 +38,10 @@ set http proxy if needed:
 
 `pip install -r requirements_versions.txt`
 
+install xformers
+
+`pip install -U -I --no-deps xformers==0.0.20`
+
 4. install extensions
 
 `cd extensions/sd-webui-controlnet`
@@ -54,8 +58,16 @@ LatentDiffusion: Running in eps-prediction mode...
 
 5. download extensions
 
-open webui
+
+open `https://huggingface.co/lllyasviel/ControlNet-v1-1/tree/main`
+
+cd `extensions/sd-webui-controlnet/models/`
 
 
-6.
+`wget https://huggingface.co/lllyasviel/ControlNet-v1-1/resolve/main/control_v11p_sd15_canny.pth`
+
+
+6. launch 
+
+`bash webui-user.sh `
 
