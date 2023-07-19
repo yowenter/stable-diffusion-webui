@@ -304,7 +304,7 @@ def prepare_environment():
     # if not is_installed("lpips"):
     #     run_pip(f"install -r \"{os.path.join(repo_dir('CodeFormer'), 'requirements.txt')}\"", "requirements for CodeFormer")
 
-    # if not os.path.isfile(requirements_file):
+    # if not os.path.isfile():
     #     requirements_file = os.path.join(script_path, requirements_file)
     # run_pip(f"install -r \"{requirements_file}\"", "requirements")
 
@@ -316,9 +316,9 @@ def prepare_environment():
     # if args.update_all_extensions:
     #     git_pull_recursive(extensions_dir)
 
-    # if "--exit" in sys.argv:
-    #     print("Exiting because of --exit argument")
-    #     exit(0)
+    if "--exit" in sys.argv:
+        print("Exiting because of --exit argument")
+        exit(0)
 
 
 def configure_for_tests():
