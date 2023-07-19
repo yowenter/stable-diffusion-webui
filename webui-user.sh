@@ -51,4 +51,4 @@ export https_proxy=http://10.50.26.95:8118
 
  export no_proxy=localhost
  
-python3 launch.py --listen  --port 9092
+python3 launch.py --listen  --port 9092 --enable-insecure-extension-access
