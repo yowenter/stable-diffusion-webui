@@ -49,4 +49,6 @@ export REQS_FILE="requirements_versions.txt"
 export http_proxy=http://10.50.26.95:8118
 export https_proxy=http://10.50.26.95:8118
 
-python3 launch.py
+ export no_proxy=localhost
+ 
+python3 launch.py --listen  --port 9092
