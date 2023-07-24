@@ -3,6 +3,9 @@ import io
 import time
 import datetime
 import uvicorn
+import importlib
+import os
+
 import gradio as gr
 from threading import Lock
 from io import BytesIO
@@ -12,6 +15,8 @@ from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from secrets import compare_digest
+from PIL import Image
+import numpy as np
 
 import modules.shared as shared
 from modules import sd_samplers, deepbooru, sd_hijack, images, scripts, ui, postprocessing, errors
@@ -30,6 +35,9 @@ from modules import devices
 from typing import Dict, List, Any
 import piexif
 import piexif.helper
+
+# LOAD Controlnet UI Group.
+controlnet_ui_group = importlib.import_module("extensions.sd-webui-controlnet.scripts.controlnet_ui.controlnet_ui_group",'controlnet_ui_group')
 
 
 def upscaler_to_index(name: str):
@@ -297,7 +305,7 @@ class Api:
                         script_args[alwayson_script.args_from + idx] = request.alwayson_scripts[alwayson_script_name]["args"][idx]
         return script_args
 
-    def text2imgapi_controlnet(self, txt2imgreq: models.StableDiffusionTxt2ImgProcessingAPI):
+    def text2imgapi_controlnet(self, txt2imgreq: models.StableDiffusionTxt2ImgControlnetProcessingAPI):
         script_runner = scripts.scripts_txt2img
         if not script_runner.scripts:
             script_runner.initialize_scripts(False)
@@ -322,15 +330,29 @@ class Api:
 
         script_args = self.init_script_args(txt2imgreq, self.default_script_arg_txt2img, selectable_scripts, selectable_script_idx, script_runner)
         if canny_image is not None:
-            print("canny image %s", canny_image)
-            from PIL import Image
-            img = Image.open(canny_image)
-            # from controlnet_ui.controlnet_ui_group import UI
-            controlArgs = UiControlNetUnit(
-                image=img,
+            if len(canny_image)<200:
+                if not os.path.exists(canny_image):
+                    return HTTPException(400, f"canny_image {canny_image} not found")
+                print(f"load canny image from path: {canny_image}")
+                img = np.asarray(Image.open(canny_image))
+            else:
+                print(f"load canny image using base64")
+                img = np.asarray(decode_base64_to_image(canny_image))
+            mask_shape = list(img.shape)
+            # add dimension.
+            mask_shape[2] = 4
+            mask = np.zeros(tuple(mask_shape), dtype=np.uint8)
+            mask[:,:,3] = 255
+            controlArgs = controlnet_ui_group.UiControlNetUnit(
+                image={
+                    "image":img.astype(np.uint8),
+                    "mask": mask
+                },
+                threshold_a=100,
+                threshold_b=200,
+                processor_res=512,
                 model='control_v11p_sd15_canny [d14c016b]',
-                module='canny'
-            )
+                module='canny')
             script_args.insert(1, controlArgs)
 
         send_images = args.pop('send_images', True)
