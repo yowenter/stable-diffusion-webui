@@ -3,6 +3,9 @@ import io
 import time
 import datetime
 import uvicorn
+import importlib
+import os
+
 import gradio as gr
 from threading import Lock
 from io import BytesIO
@@ -12,6 +15,8 @@ from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from secrets import compare_digest
+from PIL import Image
+import numpy as np
 
 import modules.shared as shared
 from modules import sd_samplers, deepbooru, sd_hijack, images, scripts, ui, postprocessing, errors
@@ -30,6 +35,9 @@ from modules import devices
 from typing import Dict, List, Any
 import piexif
 import piexif.helper
+
+# LOAD Controlnet UI Group.
+controlnet_ui_group = importlib.import_module("extensions.sd-webui-controlnet.scripts.controlnet_ui.controlnet_ui_group",'controlnet_ui_group')
 
 
 def upscaler_to_index(name: str):
@@ -176,6 +184,7 @@ class Api:
         self.queue_lock = queue_lock
         api_middleware(self.app)
         self.add_api_route("/sdapi/v1/txt2img", self.text2imgapi, methods=["POST"], response_model=models.TextToImageResponse)
+        self.add_api_route("/sdapi/v1/txt2img-controlnet", self.text2imgapi_controlnet, methods=["POST"], response_model=models.TextToImageResponse)
         self.add_api_route("/sdapi/v1/img2img", self.img2imgapi, methods=["POST"], response_model=models.ImageToImageResponse)
         self.add_api_route("/sdapi/v1/extra-single-image", self.extras_single_image_api, methods=["POST"], response_model=models.ExtrasSingleImageResponse)
         self.add_api_route("/sdapi/v1/extra-batch-images", self.extras_batch_images_api, methods=["POST"], response_model=models.ExtrasBatchImagesResponse)
@@ -295,6 +304,79 @@ class Api:
                     for idx in range(0, min((alwayson_script.args_to - alwayson_script.args_from), len(request.alwayson_scripts[alwayson_script_name]["args"]))):
                         script_args[alwayson_script.args_from + idx] = request.alwayson_scripts[alwayson_script_name]["args"][idx]
         return script_args
+
+    def text2imgapi_controlnet(self, txt2imgreq: models.StableDiffusionTxt2ImgControlnetProcessingAPI):
+        script_runner = scripts.scripts_txt2img
+        if not script_runner.scripts:
+            script_runner.initialize_scripts(False)
+            ui.create_ui()
+        if not self.default_script_arg_txt2img:
+            self.default_script_arg_txt2img = self.init_default_script_args(script_runner)
+        selectable_scripts, selectable_script_idx = self.get_selectable_script(txt2imgreq.script_name, script_runner)
+
+        populate = txt2imgreq.copy(update={  # Override __init__ params
+            "sampler_name": validate_sampler_name(txt2imgreq.sampler_name or txt2imgreq.sampler_index),
+            "do_not_save_samples": not txt2imgreq.save_images,
+            "do_not_save_grid": not txt2imgreq.save_images,
+        })
+        if populate.sampler_name:
+            populate.sampler_index = None  # prevent a warning later on
+
+        args = vars(populate)
+        args.pop('script_name', None)
+        args.pop('script_args', None) # will refeed them to the pipeline directly after initializing them
+        args.pop('alwayson_scripts', None)
+        canny_image = args.pop('canny_image', None)
+
+        script_args = self.init_script_args(txt2imgreq, self.default_script_arg_txt2img, selectable_scripts, selectable_script_idx, script_runner)
+        if canny_image is not None:
+            if len(canny_image)<200:
+                if not os.path.exists(canny_image):
+                    return HTTPException(400, f"canny_image {canny_image} not found")
+                print(f"load canny image from path: {canny_image}")
+                img = np.asarray(Image.open(canny_image))
+            else:
+                print(f"load canny image using base64")
+                img = np.asarray(decode_base64_to_image(canny_image))
+            mask_shape = list(img.shape)
+            # add dimension.
+            mask_shape[2] = 4
+            mask = np.zeros(tuple(mask_shape), dtype=np.uint8)
+            mask[:,:,3] = 255
+            controlArgs = controlnet_ui_group.UiControlNetUnit(
+                image={
+                    "image":img.astype(np.uint8),
+                    "mask": mask
+                },
+                threshold_a=100,
+                threshold_b=200,
+                processor_res=512,
+                model='control_v11p_sd15_canny [d14c016b]',
+                module='canny')
+            script_args.insert(1, controlArgs)
+
+        send_images = args.pop('send_images', True)
+        args.pop('save_images', None)
+
+        with self.queue_lock:
+            p = StableDiffusionProcessingTxt2Img(sd_model=shared.sd_model, **args)
+            p.scripts = script_runner
+            p.outpath_grids = opts.outdir_txt2img_grids
+            p.outpath_samples = opts.outdir_txt2img_samples
+
+            shared.state.begin()
+            if selectable_scripts is not None:
+                p.script_args = script_args
+                processed = scripts.scripts_txt2img.run(p, *p.script_args) # Need to pass args as list here
+            else:
+                p.script_args = tuple(script_args) # Need to pass args as tuple here
+                processed = process_images(p)
+            shared.state.end()
+
+        b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []
+
+        return models.TextToImageResponse(images=b64images, parameters=vars(txt2imgreq), info=processed.js())
+            
 
     def text2imgapi(self, txt2imgreq: models.StableDiffusionTxt2ImgProcessingAPI):
         script_runner = scripts.scripts_txt2img
