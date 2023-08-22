@@ -88,7 +88,7 @@ export no_proxy=localhost
 
 
 # if use acclerate
-accelerate launch --num_processes=1 --num_cpu_threads_per_process=1  launch.py --listen  --port 9092 --enable-insecure-extension-access
+accelerate launch --num_processes=1 --num_cpu_threads_per_process=1  launch.py --listen  --port 9092 --enable-insecure-extension-access --api
  
 # else use 
 #python3 launch.py --listen  --port 9092 --enable-insecure-extension-access
