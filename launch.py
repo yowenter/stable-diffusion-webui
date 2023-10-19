@@ -27,6 +27,7 @@ start = launch_utils.start
 def main():
     if not args.skip_prepare_environment:
         prepare_environment()
+        print("environment prepared!")
 
     if args.test_server:
         configure_for_tests()
